@@ -1,0 +1,62 @@
+stages:
+  - test
+  - publish
+  - trigger_prep
+  - trigger
+
+include:
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-github-status-updates.yml'
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-check-commits.yml'
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-check-license.yml'
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-check-c++.yml'
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+test:
+  stage: test
+  image: debian:11
+  before_script:
+    - apt update && apt install -yyq g++ cmake git make lcov pkg-config
+  script:
+    - cmake -D COVERAGE=ON .
+    - make coverage
+  artifacts:
+    expire_in: 2w
+    reports:
+      junit: reports/*.xml
+    paths:
+      - coverage.lcov
+
+publish:tests:
+  stage: publish
+  image: python:3.11
+  dependencies:
+    - test
+  before_script:
+    # Install dependencies
+    - apt update && apt install -yyq lcov
+    - pip install cpp-coveralls pyyaml
+
+    # eddyxu/cpp-coveralls appears dead, but there doesn't seem to be an
+    # alternative. Use this patch from someone who attempted to fix it. An
+    # alternative to this is to use pyyaml<6, but it's better to use just one
+    # old component than two.
+    - curl -f https://github.com/eddyxu/cpp-coveralls/commit/067c837c04e039e8c70aa53bceda1cded6751408.patch | patch -f /usr/local/lib/python3.11/site-packages/cpp_coveralls/__init__.py
+
+    - export CI_BRANCH=$CI_COMMIT_BRANCH
+    # "TRAVIS_JOB_ID" is hardcoded in cpp-coveralls, but it is semantically the
+    # same as "CI_JOB_ID" would be.
+    - export TRAVIS_JOB_ID=$CI_PIPELINE_ID
+
+  script:
+    - 'echo "service_name: gitlab-ci" > .coveralls.yml'
+    - cpp-coveralls
+      --repo-token ${COVERALLS_TOKEN}
+      --no-gcov
+      --lcov-file coverage.lcov
+

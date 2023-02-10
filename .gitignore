@@ -1,0 +1,32 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+*.exe
+*.test
+*.prof
+*.gcda
+*.gcno
+*.gcov
+*.lcov
+
+# Test binaries
+*_test
+
+# Build artifacts
+/mender-flash
+
+# Test reports
+/reports
+
+# Misc
+/.clang-format
+
+# CMake
+**/CMakeCache.txt
+**/CMakeFiles/
+/_deps/
+*.cmake
+/Testing
+/install_manifest*.txt
