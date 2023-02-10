@@ -18,6 +18,8 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 test:
+  tags:
+    - mender-qa-worker-generic-light
   stage: test
   image: debian:11
   before_script:
@@ -33,6 +35,8 @@ test:
       - coverage.lcov
 
 publish:tests:
+  tags:
+    - mender-qa-worker-generic-light
   stage: publish
   image: python:3.11
   dependencies:
