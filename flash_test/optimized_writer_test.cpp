@@ -28,24 +28,27 @@ class StringFileReader : public mender::io::FileReader {
 public:
 	StringFileReader(const std::string &str) :
 		mender::io::FileReader(-1),
-		mString(str) {
+		mS(str),
+		mReader(mS) {
 	}
 	virtual ExpectedSize Tell() const override {
 		return mBytesRead;
 	}
-	virtual ExpectedSize Read(vector<uint8_t> &dst) override {
-		size_t bytes_to_copy = std::min(dst.size(), mString.size() - mBytesRead);
-		for (size_t i = 0; i < bytes_to_copy; i++) {
-			dst[i] = mString[i];
+	virtual ExpectedSize Read(
+		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override {
+		auto ret = mReader.Read(start, end);
+		if (ret) {
+			mBytesRead += ret.value();
 		}
-		mBytesRead += bytes_to_copy;
-		return bytes_to_copy;
+		return ret;
 	}
 
 private:
-	std::string mString;
+	std::stringstream mS;
+	mender::common::io::StreamReader mReader;
 	size_t mBytesRead {0};
 };
+
 
 TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWrite) {
 	// prepare a temp dir
@@ -66,7 +69,7 @@ TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWrite) {
 	mender::io::Bytes payloadBuf {'f', 'o', 'o', 'b', 'a', 'r'};
 	auto expectedBytesWritten = payloadBuf.size();
 
-	auto res = writer.Write(payloadBuf);
+	auto res = writer.Write(payloadBuf.begin(), payloadBuf.end());
 	ASSERT_TRUE(res) << res.error().message;
 	ASSERT_EQ(res.value(), expectedBytesWritten);
 
@@ -89,7 +92,7 @@ TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWriteNegative) {
 	// create a 12 byte buffer
 	mender::io::Bytes payloadBuf {'f', 'o', 'o', 'b', 'a', 'r', 'f', 'o', 'o', 'b', 'a', 'r'};
 
-	auto res = writer.Write(payloadBuf);
+	auto res = writer.Write(payloadBuf.begin(), payloadBuf.end());
 	ASSERT_FALSE(res) << "Data written beyound the device limit";
 
 	auto err = mender::io::Close(fd);

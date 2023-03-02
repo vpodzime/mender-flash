@@ -20,8 +20,9 @@ mender::io::FileReader::FileReader(mender::io::File f) :
 	mFd(f) {
 }
 
-ExpectedSize mender::io::FileReader::Read(vector<uint8_t> &dst) {
-	return mender::io::Read(mFd, dst);
+ExpectedSize mender::io::FileReader::Read(
+	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
+	return mender::io::Read(mFd, &*start, end - start);
 }
 
 ExpectedSize mender::io::FileReader::Tell() const {
@@ -32,8 +33,9 @@ mender::io::InputStreamReader::InputStreamReader() :
 	FileReader(GetInputStream()) {
 }
 
-ExpectedSize mender::io::InputStreamReader::Read(vector<uint8_t> &dst) {
-	auto res = FileReader::Read(dst);
+ExpectedSize mender::io::InputStreamReader::Read(
+	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
+	auto res = FileReader::Read(start, end);
 	if (!res) {
 		return res.error();
 	}
@@ -52,15 +54,17 @@ mender::io::LimitedFlushingWriter::LimitedFlushingWriter(
 	mFlushIntervalBytes(flushInterval) {
 }
 
-ExpectedSize mender::io::LimitedFlushingWriter::Write(const vector<uint8_t> &dst) {
+ExpectedSize mender::io::LimitedFlushingWriter::Write(
+	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
 	auto pos = mender::io::Tell(mFd);
 	if (!pos) {
 		return pos.error();
 	}
-	if (mWritingLimit && pos.value() + dst.size() > mWritingLimit) {
+	auto dataLen = end - start;
+	if (mWritingLimit && pos.value() + dataLen > mWritingLimit) {
 		return Error(std::error_condition(std::errc::io_error), "Error writing beyound the limit");
 	}
-	auto res = FileWriter::Write(dst);
+	auto res = FileWriter::Write(start, end);
 	if (res) {
 		mUnflushedBytesWritten += res.value();
 		if (mUnflushedBytesWritten >= mFlushIntervalBytes) {
@@ -79,20 +83,23 @@ mender::io::FileWriter::FileWriter(File f) :
 	mFd(f) {
 }
 
-ExpectedSize mender::io::FileWriter::Write(const vector<uint8_t> &dst) {
-	return mender::io::Write(mFd, dst);
+ExpectedSize mender::io::FileWriter::Write(
+	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
+	return mender::io::Write(mFd, (&*start), end - start);
 }
 
 mender::io::FileReadWriter::FileReadWriter(File f) :
 	mFd(f) {
 }
 
-ExpectedSize mender::io::FileReadWriter::Read(vector<uint8_t> &dst) {
-	return mender::io::Read(mFd, dst);
+ExpectedSize mender::io::FileReadWriter::Read(
+	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
+	return mender::io::Read(mFd, (&*start), end - start);
 }
 
-ExpectedSize mender::io::FileReadWriter::Write(const vector<uint8_t> &dst) {
-	return mender::io::Write(mFd, dst);
+ExpectedSize mender::io::FileReadWriter::Write(
+	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
+	return mender::io::Write(mFd, (&*start), end - start);
 }
 
 mender::io::FileReadWriterSeeker::FileReadWriterSeeker(FileWriter &writer) :
@@ -100,8 +107,9 @@ mender::io::FileReadWriterSeeker::FileReadWriterSeeker(FileWriter &writer) :
 	mWriter(writer) {
 }
 
-ExpectedSize mender::io::FileReadWriterSeeker::Write(const vector<uint8_t> &dst) {
-	return mWriter.Write(dst);
+ExpectedSize mender::io::FileReadWriterSeeker::Write(
+	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
+	return mWriter.Write(start, end);
 }
 
 Error mender::io::FileReadWriterSeeker::SeekSet(uint64_t pos) {

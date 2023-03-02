@@ -41,17 +41,24 @@ class Reader {
 public:
 	virtual ~Reader() {};
 
-	virtual ExpectedSize Read(vector<uint8_t> &dst) = 0;
+	virtual ExpectedSize Read(vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) = 0;
 };
+using ReaderPtr = shared_ptr<Reader>;
+using ExpectedReaderPtr = Expected<ReaderPtr, Error>;
 
 class Writer {
 public:
 	virtual ~Writer() {};
 
-	virtual ExpectedSize Write(const vector<uint8_t> &dst) = 0;
+	virtual ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) = 0;
 };
+using WriterPtr = shared_ptr<Writer>;
+using ExpectedWriterPtr = Expected<WriterPtr, Error>;
 
 class ReadWriter : virtual public Reader, virtual public Writer {};
+using ReadWriterPtr = shared_ptr<ReadWriter>;
+using ExpectedReadWriterPtr = Expected<ReadWriterPtr, Error>;
 
 /**
  * Stream the data from `src` to `dst` until encountering EOF or an error.
@@ -75,40 +82,44 @@ public:
 	StreamReader(std::istream &&stream) :
 		is_ {stream} {
 	}
-	ExpectedSize Read(vector<uint8_t> &dst) override {
-		is_.read(reinterpret_cast<char *>(&dst[0]), dst.size());
+	ExpectedSize Read(vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override {
+		is_.read(reinterpret_cast<char *>(&*start), end - start);
+		if (is_.bad()) {
+			int int_error = errno;
+			return Error(
+				std::error_code(int_error, std::system_category()).default_error_condition(), "");
+		}
 		return is_.gcount();
 	}
 };
 
 /* Discards all data written to it */
 class Discard : virtual public Writer {
-	ExpectedSize Write(const vector<uint8_t> &dst) override {
-		return dst.size();
+	ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override {
+		return end - start;
 	}
 };
 
 class StringReader : virtual public Reader {
 private:
-	StreamReader reader_;
 	std::stringstream s_;
+	StreamReader reader_;
 
 public:
-	StringReader(string &str);
+	StringReader(string &str) :
+		s_ {str},
+		reader_ {s_} {
+	}
 	StringReader(string &&str) :
-		reader_ {s_},
-		s_ {str} {
+		s_ {str},
+		reader_ {s_} {
 	}
 
-	ExpectedSize Read(vector<uint8_t> &dst) override {
-		return reader_.Read(dst);
+	ExpectedSize Read(vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override {
+		return reader_.Read(start, end);
 	}
 };
-
-inline StringReader::StringReader(string &str) :
-	reader_ {s_},
-	s_ {str} {
-}
 
 } // namespace io
 } // namespace common

@@ -23,7 +23,8 @@ namespace io {
 class FileWriter : public common::io::Writer {
 public:
 	FileWriter(File f);
-	virtual ExpectedSize Write(const vector<uint8_t> &dst) override;
+	virtual ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
 
 	File GetFile() const {
 		return mFd;
@@ -36,7 +37,8 @@ protected:
 class LimitedFlushingWriter : public FileWriter {
 public:
 	LimitedFlushingWriter(File f, size_t limit, uint32_t flushInterval = 1);
-	virtual ExpectedSize Write(const vector<uint8_t> &dst) override;
+	virtual ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
 
 protected:
 	size_t mWritingLimit {0};
@@ -47,7 +49,8 @@ protected:
 class FileReader : public common::io::Reader {
 public:
 	FileReader(File fd);
-	virtual ExpectedSize Read(vector<uint8_t> &dst) override;
+	virtual ExpectedSize Read(
+		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override;
 	virtual ExpectedSize Tell() const;
 
 	File GetFile() const {
@@ -61,7 +64,8 @@ protected:
 class InputStreamReader : public FileReader {
 public:
 	InputStreamReader();
-	virtual ExpectedSize Read(vector<uint8_t> &dst) override;
+	virtual ExpectedSize Read(
+		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override;
 	virtual ExpectedSize Tell() const override;
 
 protected:
@@ -71,8 +75,10 @@ protected:
 class FileReadWriter : public common::io::ReadWriter {
 public:
 	FileReadWriter(File f);
-	virtual ExpectedSize Read(vector<uint8_t> &dst) override;
-	virtual ExpectedSize Write(const vector<uint8_t> &dst) override;
+	virtual ExpectedSize Read(
+		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override;
+	virtual ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
 
 	File GetFile() const {
 		return mFd;
@@ -86,7 +92,8 @@ class FileReadWriterSeeker : public FileReadWriter {
 public:
 	FileReadWriterSeeker(FileWriter &writer);
 
-	virtual ExpectedSize Write(const vector<uint8_t> &dst) override;
+	virtual ExpectedSize Write(
+		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
 	Error SeekSet(uint64_t pos);
 	virtual ExpectedSize Tell() const;
 

@@ -50,7 +50,7 @@ Error OptimizedWriter::Copy() {
 			return NoError;
 		}
 
-		auto result = mReader.Read(rv);
+		auto result = mReader.Read(rv.begin(), rv.end());
 		if (!result) {
 			return result.error();
 		} else if (result.value() == 0) {
@@ -80,7 +80,7 @@ Error OptimizedWriter::Copy() {
 				"Failed to set seek on the destination file");
 		}
 
-		auto readResult = mReadWriter.Read(wv);
+		auto readResult = mReadWriter.Read(wv.begin(), wv.end());
 		if (readResult && readResult.value() == readBytes) {
 			wv.resize(readResult.value());
 			skipWriting = std::equal(rv.begin(), rv.end(), wv.data());
@@ -91,7 +91,7 @@ Error OptimizedWriter::Copy() {
 
 		if (!skipWriting && !mBypassWriting) {
 			mReadWriter.SeekSet(position);
-			auto res = mReadWriter.Write(rv);
+			auto res = mReadWriter.Write(rv.begin(), rv.end());
 			if (res) {
 				++mStatistics.mBlocksWritten;
 				mStatistics.mBytesWritten += res.value();

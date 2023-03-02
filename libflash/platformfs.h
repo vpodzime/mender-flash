@@ -61,18 +61,20 @@ ExpectedSize GetSize(File f);
 ///
 /// \brief Read
 /// \param f: file
-/// \param data: vector to store read data
+/// \param dataPtr: pointer to store read data
+/// \param dataLen: length of data to read
 /// \return number of bytes read or error on failure
 ///
-ExpectedSize Read(File f, Bytes &data);
+ExpectedSize Read(File f, uint8_t *dataPtr, size_t dataLen);
 
 ///
 /// \brief Write
 /// \param f: file
-/// \param data
+/// \param dataPtr: pointer to data
+/// \param dataLen: length of data to write
 /// \return number of bytes written or error on failure
 ///
-ExpectedSize Write(File f, const Bytes &data);
+ExpectedSize Write(File f, const uint8_t *dataPtr, size_t dataLen);
 
 ///
 /// \brief Flush: flushes written data
