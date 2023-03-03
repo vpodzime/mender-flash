@@ -191,8 +191,3 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
 		ASSERT_EQ(err, NoError);
 	}
 }
-
-int main(int argc, char *argv[]) {
-	::testing::InitGoogleTest(&argc, argv);
-	return RUN_ALL_TESTS();
-}

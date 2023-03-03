@@ -14,8 +14,7 @@
 
 #include <gtest/gtest.h>
 
-int GetTheAnswerToLifeTheUniverseAndEverything();
-
-TEST(Main, Main) {
-	EXPECT_EQ(GetTheAnswerToLifeTheUniverseAndEverything(), 42) << "Printed if test fails";
+int main(int argc, char *argv[]) {
+	::testing::InitGoogleTest(&argc, argv);
+	return RUN_ALL_TESTS();
 }
