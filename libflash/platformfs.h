@@ -112,20 +112,27 @@ File GetInputStream();
 ExpectedBool IsSpecialBlockDevice(File f);
 
 ///
+/// \brief IsUBIDevice
+/// \param path
+/// \return: true if path points to an UBI volume
+///
+ExpectedBool IsUBIDevice(const std::string &path);
+
+///
+/// \brief SetUbiUpdateVolume
+/// \param f
+/// \param size
+/// \return
+///
+Error SetUbiUpdateVolume(File f, size_t size);
+
+///
 /// \brief WriteFile: opens a file (creates if doesn't exist), writes the data and closes the file
 /// \param path: path to the file
 /// \param data: data that's will be written to the file
 /// \return bytes written on an error
 ///
 ExpectedSize WriteFile(const string &path, const Bytes &data);
-
-///
-/// \brief MakeTempDir
-/// \param templateName: name of the new temp directory, the function will create a dir name by
-///	appending 6 random characters to the given name
-/// \return temp directory name or error
-///
-ExpectedString MakeTempDir(const string &templateName);
 
 } // namespace io
 } // namespace mender

@@ -26,10 +26,10 @@ void PrintHelp() {
 }
 
 int main(int argc, char *argv[]) {
-	int c;
-	int inputSize = 0;
-	std::string inputPath = "";
-	std::string outputPath = "";
+	int volumeSize = 0;
+	std::string inputPath;
+	std::string outputPath;
+	const size_t blockSize = 1024 * 1024; // 1MB block size
 
 	while (1) {
 		static struct option long_options[] = {
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 			{0, 0, 0, 0}};
 
 		int option_index = 0;
-		c = getopt_long(argc, argv, "hs:i:o:", long_options, &option_index);
+		int c = getopt_long(argc, argv, "hs:i:o:", long_options, &option_index);
 		if (c == -1) {
 			break;
 		}
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 			return 0;
 
 		case 's':
-			inputSize = atoi(optarg);
+			volumeSize = atoi(optarg);
 			break;
 
 		case 'i':
@@ -65,14 +65,15 @@ int main(int argc, char *argv[]) {
 			break;
 
 		default:
-			abort();
+			PrintHelp();
+			exit(EXIT_FAILURE);
 		}
 	}
 
 	if (inputPath.empty() || outputPath.empty()) {
-		std::cout << "Wrong input parameters!" << std::endl;
+		std::cerr << "Wrong input parameters!" << std::endl;
 		PrintHelp();
-		return 0;
+		exit(EXIT_FAILURE);
 	}
 
 	mender::io::File srcFile;
@@ -85,24 +86,45 @@ int main(int argc, char *argv[]) {
 	} else {
 		auto src = mender::io::Open(inputPath);
 		if (!src) {
-			std::cerr << "Failed to open src: " << argv[1] << " (" << src.error().message << ")";
-			return 1;
+			std::cerr << "Failed to open source: " << inputPath << " (" << src.error().message
+					  << ")";
+			exit(EXIT_FAILURE);
 		}
 		srcFile = src.value();
 		reader = std::make_shared<mender::io::FileReader>(srcFile);
 	}
 
-	auto dst = mender::io::Open(outputPath, true, true);
+	bool isUBI = false;
+	auto isUBIRes = mender::io::IsUBIDevice(outputPath);
+	if (isUBIRes.has_value()) {
+		isUBI = isUBIRes.value();
+	}
+
+	auto dst = mender::io::Open(
+		outputPath,
+		!isUBI, // read: only for non-UBI volumes
+		true);  // write
+
 	if (!dst) {
-		std::cerr << "Failed to open dst: " << outputPath << " (" << dst.error().message << ")";
-		return 1;
+		std::cerr << "Failed to open destination: " << outputPath << " (" << dst.error().message
+				  << ")";
+		exit(EXIT_FAILURE);
 	}
 	dstFile = dst.value();
 
+	if (isUBI) {
+		auto res = mender::io::SetUbiUpdateVolume(dstFile, volumeSize);
+		if (res != mender::common::error::NoError) {
+			std::cerr << res.message;
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	mender::io::LimitedFlushingWriter flushWriter(dstFile, volumeSize, blockSize);
 	mender::io::FileWriter writer(dstFile);
-	mender::io::FileReadWriterSeeker readwriter(writer);
-	mender::OptimizedWriter optWriter(*reader, readwriter, 1024 * 1024, inputSize);
-	optWriter.Copy();
+	mender::io::FileReadWriterSeeker readwriter(isUBI ? writer : flushWriter);
+	mender::OptimizedWriter optWriter(*reader, readwriter, blockSize, volumeSize);
+	optWriter.Copy(!isUBI);
 
 	auto statistics = optWriter.GetStatistics();
 
@@ -117,5 +139,5 @@ int main(int argc, char *argv[]) {
 	}
 	mender::io::Close(dstFile);
 
-	return 0;
+	exit(EXIT_SUCCESS);
 }

@@ -49,7 +49,6 @@ private:
 	size_t mBytesRead {0};
 };
 
-
 TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWrite) {
 	// prepare a temp dir
 	mender::common::testing::TemporaryDirectory tempDir;
@@ -126,7 +125,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 
 	// creawte optimized-writer
 	mender::OptimizedWriter optWriter(reader, readWriter);
-	auto copyRes = optWriter.Copy();
+	auto copyRes = optWriter.Copy(true);
 	ASSERT_EQ(copyRes, NoError) << copyRes.message;
 
 	auto stats = optWriter.GetStatistics();
@@ -134,17 +133,90 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 	ASSERT_EQ(stats.mBlocksOmitted, 0);
 	ASSERT_EQ(stats.mBytesWritten, 10 * 1024 * 1024);
 
+	// rewind the files
 	mender::io::SeekSet(fd, 0);
 	mender::io::SeekSet(fd2, 0);
 
-	// create optimized-writer
-	auto copyRes2 = optWriter.Copy();
+	// copy the data
+	auto copyRes2 = optWriter.Copy(true);
 	ASSERT_EQ(copyRes2, NoError) << copyRes.message;
 
 	auto stats2 = optWriter.GetStatistics();
 	ASSERT_EQ(stats2.mBlocksWritten, 0);
 	ASSERT_EQ(stats2.mBlocksOmitted, 10);
 	ASSERT_EQ(stats2.mBytesWritten, 0);
+
+	// rewind the files
+	mender::io::SeekSet(fd, 0);
+	mender::io::SeekSet(fd2, 0);
+
+	// copy the data (not optimized)
+	auto copyRes3 = optWriter.Copy(false);
+	ASSERT_EQ(copyRes3, NoError) << copyRes.message;
+
+	auto stats3 = optWriter.GetStatistics();
+	ASSERT_EQ(stats3.mBlocksWritten, 10);
+	ASSERT_EQ(stats3.mBlocksOmitted, 0);
+	ASSERT_EQ(stats3.mBytesWritten, 10 * 1024 * 1024);
+
+	auto err = mender::io::Close(fd);
+	ASSERT_EQ(err, NoError);
+	auto err2 = mender::io::Close(fd2);
+	ASSERT_EQ(err, NoError);
+}
+
+TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
+	// prepare a temp dir
+	mender::common::testing::TemporaryDirectory tempDir;
+	auto path = tempDir.Path() + "/foo";
+
+	std::stringstream ss;
+	ss << "dd if=/dev/urandom of=" << path << " bs=1M count=10 status=none";
+	system(ss.str().c_str());
+
+	// create a reader
+	auto f = mender::io::Open(path, true, false);
+	ASSERT_TRUE(f) << f.error().message;
+	mender::io::File fd = f.value();
+	mender::io::FileReader reader(fd);
+
+	auto path2 = path + ".copy";
+	auto f2 = mender::io::Open(path2, true, true);
+	ASSERT_TRUE(f2) << f.error().message;
+	mender::io::File fd2 = f2.value();
+	mender::io::FileWriter writer(fd2);
+
+	// create read-writer
+	mender::io::FileReadWriterSeeker readWriter(writer);
+
+	// creawte optimized-writer
+	mender::OptimizedWriter optWriter(reader, readWriter);
+	auto copyRes = optWriter.Copy(true);
+	ASSERT_EQ(copyRes, NoError) << copyRes.message;
+
+	auto stats = optWriter.GetStatistics();
+	ASSERT_EQ(stats.mBlocksWritten, 10);
+	ASSERT_EQ(stats.mBlocksOmitted, 0);
+	ASSERT_EQ(stats.mBytesWritten, 10 * 1024 * 1024);
+
+	mender::io::Close(fd2);
+
+	// rewind the input file
+	mender::io::SeekSet(fd, 0);
+
+	// reopen the dst file (no write permission)
+	f2 = mender::io::Open(path2, true, false);
+	ASSERT_TRUE(f2) << f.error().message;
+	fd2 = f2.value();
+	mender::io::FileWriter writer2(fd2);
+
+	// create read-writer
+	mender::io::FileReadWriterSeeker readWriter2(writer2);
+
+	// creawte optimized-writer
+	mender::OptimizedWriter optWriter2(reader, readWriter2);
+	auto copyRes2 = optWriter.Copy(false);
+	ASSERT_NE(copyRes2, NoError);
 
 	auto err = mender::io::Close(fd);
 	ASSERT_EQ(err, NoError);
@@ -180,7 +252,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
 		// create optimized-writer
 		mender::OptimizedWriter optWriter(
 			reader, readWriter, tests[i].blockSize, tests[i].inputSize);
-		optWriter.Copy();
+		optWriter.Copy(true);
 
 		auto stats = optWriter.GetStatistics();
 		ASSERT_EQ(stats.mBlocksWritten, tests[i].expectedBlockWritten);

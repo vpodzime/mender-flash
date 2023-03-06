@@ -22,6 +22,9 @@
 
 #include <sstream>
 
+#include <sys/sysmacros.h>
+#include <mtd/ubi-user.h>
+
 mender::io::ExpectedFile mender::io::Open(const string &p, bool read, bool write) {
 	if (!read && !write) {
 		return Error(std::error_condition(std::errc::io_error), "Wrong access flags provided");
@@ -120,7 +123,9 @@ mender::io::File mender::io::GetInputStream() {
 ExpectedBool mender::io::IsSpecialBlockDevice(File f) {
 	struct stat statbuf;
 	if (-1 == fstat(f, &statbuf)) {
-		return Error(std::error_condition(std::errc::io_error), "Failed to get fstat");
+		std::stringstream ss;
+		ss << "Failed to get file stat: " << errno;
+		return Error(std::error_condition(std::errc::io_error), ss.str());
 	} else if (S_ISBLK(statbuf.st_mode)) {
 		return true;
 	}
@@ -134,7 +139,7 @@ ExpectedSize mender::io::WriteFile(const string &path, const Bytes &data) {
 		ssize_t bytesWrote = write(fd, data.data(), data.size());
 		Close(fd);
 		if (bytesWrote <= 0) {
-			return Error(std::error_condition(std::errc::io_error), "Error while writing data");
+			return Error(std::error_condition(std::errc::io_error), "Error writing data");
 		} else {
 			return bytesWrote;
 		}
@@ -142,11 +147,22 @@ ExpectedSize mender::io::WriteFile(const string &path, const Bytes &data) {
 	return f.error();
 }
 
-ExpectedString mender::io::MakeTempDir(const string &templateName) {
-	std::string name = templateName + "XXXXXX";
-	char *dir_name = mkdtemp(const_cast<char *>(name.c_str()));
-	if (dir_name == nullptr) {
-		return Error(std::error_condition(std::errc::io_error), "Creating temp dir");
+ExpectedBool mender::io::IsUBIDevice(const string &path) {
+	struct stat statbuf;
+	if (-1 == stat(path.c_str(), &statbuf)) {
+		std::stringstream ss;
+		ss << "Failed to get file stat: " << errno;
+		return Error(std::error_condition(std::errc::io_error), ss.str());
+	} else if (S_ISBLK(statbuf.st_mode) && major(statbuf.st_rdev) == 10) {
+		return true;
+	} else {
+		return false;
 	}
-	return name;
+}
+
+Error mender::io::SetUbiUpdateVolume(File f, size_t size) {
+	if (ioctl(f, UBI_IOCVOLUP, &size) < 0) {
+		return Error(std::error_condition(std::errc::io_error), "Error updating UBI volume");
+	}
+	return NoError;
 }

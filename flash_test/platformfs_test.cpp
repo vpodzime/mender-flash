@@ -39,22 +39,33 @@ TEST_F(PlatformFsTest, OpenFile) {
 	ASSERT_TRUE(size);
 	ASSERT_EQ(size.value(), vec.size());
 
-
 	// fail to open file - wrong flags
 	auto testFileFail = mender::io::Open(testFileName, false, false);
 	ASSERT_FALSE(testFileFail);
 
-
 	auto testFile = mender::io::Open(testFileName, true, false);
 	ASSERT_TRUE(testFile);
 
-	auto blockRes = mender::io::IsSpecialBlockDevice(testFile);
+	mender::io::File testFd = testFile.value();
+
+	auto blockRes = mender::io::IsSpecialBlockDevice(testFd);
 	ASSERT_TRUE(blockRes);
 	ASSERT_FALSE(blockRes.value());
 
-	auto fileSize = mender::io::GetSize(testFile.value());
+	auto ubiRes = mender::io::IsUBIDevice(testFileName);
+	ASSERT_TRUE(ubiRes);
+	ASSERT_FALSE(ubiRes.value());
+
+	auto fileSize = mender::io::GetSize(testFd);
 	ASSERT_TRUE(fileSize);
 	ASSERT_EQ(fileSize.value(), vec.size());
+
+	auto tellRes = mender::io::Tell(testFd);
+	ASSERT_TRUE(tellRes);
+	ASSERT_EQ(tellRes.value(), 0);
+
+	auto ubiUptadeRes = mender::io::SetUbiUpdateVolume(testFd, 10);
+	ASSERT_NE(ubiUptadeRes, NoError);
 
 	auto closeRes = mender::io::Close(testFile.value());
 	ASSERT_EQ(NoError, closeRes);

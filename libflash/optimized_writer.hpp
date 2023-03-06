@@ -24,8 +24,8 @@ public:
 		io::FileReader &reader,
 		io::FileReadWriterSeeker &writer,
 		size_t blockSize = 1024 * 1024,
-		size_t limit = 0);
-	common::error::Error Copy();
+		size_t volumeSize = 0);
+	common::error::Error Copy(bool optimized);
 
 	void PrintStatistics() const;
 
@@ -43,7 +43,7 @@ private:
 	size_t mBlockSize;
 	io::FileReader &mReader;
 	io::FileReadWriterSeeker &mReadWriter;
-	size_t mInputLimit {0};
+	size_t mVolumeSize {0};
 	bool mBypassWriting {false}; // for test only, to be removed
 
 	Statistics mStatistics;

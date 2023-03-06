@@ -18,14 +18,14 @@
 using namespace mender;
 
 OptimizedWriter::OptimizedWriter(
-	io::FileReader &reader, io::FileReadWriterSeeker &writer, size_t blockSize, size_t limit) :
+	io::FileReader &reader, io::FileReadWriterSeeker &writer, size_t blockSize, size_t volumeSize) :
 	mBlockSize(blockSize),
 	mReader(reader),
 	mReadWriter(writer),
-	mInputLimit(limit) {
+	mVolumeSize(volumeSize) {
 }
 
-Error OptimizedWriter::Copy() {
+Error OptimizedWriter::Copy(bool optimized) {
 	mStatistics.mBlocksWritten = 0;
 	mStatistics.mBlocksOmitted = 0;
 	mStatistics.mBytesWritten = 0;
@@ -46,7 +46,7 @@ Error OptimizedWriter::Copy() {
 		}
 		auto position = pos.value();
 
-		if (mInputLimit && ((position + mBlockSize) > mInputLimit)) {
+		if (mVolumeSize && ((position + mBlockSize) > mVolumeSize)) {
 			return NoError;
 		}
 
@@ -72,35 +72,39 @@ Error OptimizedWriter::Copy() {
 			wv.resize(readBytes);
 		}
 
-		bool skipWriting = false;
-
 		if (NoError != mReadWriter.SeekSet(position)) {
 			return Error(
 				std::error_condition(std::errc::io_error),
 				"Failed to set seek on the destination file");
 		}
 
-		auto readResult = mReadWriter.Read(wv.begin(), wv.end());
-		if (readResult && readResult.value() == readBytes) {
-			wv.resize(readResult.value());
-			skipWriting = std::equal(rv.begin(), rv.end(), wv.data());
-			if (skipWriting) {
-				++mStatistics.mBlocksOmitted;
+		bool skipWriting = false;
+		if (optimized) {
+			auto readResult = mReadWriter.Read(wv.begin(), wv.end());
+			if (readResult && readResult.value() == readBytes) {
+				wv.resize(readResult.value());
+				skipWriting = std::equal(rv.begin(), rv.end(), wv.data());
+				if (skipWriting) {
+					++mStatistics.mBlocksOmitted;
+				}
 			}
 		}
 
 		if (!skipWriting && !mBypassWriting) {
 			mReadWriter.SeekSet(position);
 			auto res = mReadWriter.Write(rv.begin(), rv.end());
-			if (res) {
+			if (res && res.value() == rv.size()) {
 				++mStatistics.mBlocksWritten;
 				mStatistics.mBytesWritten += res.value();
-			} else if (result.value() == 0) {
+			} else if (res && res.value() == 0) {
 				return Error(
 					std::error_condition(std::errc::io_error), "Zero write when copying data");
-			} else if (result.value() != rv.size()) {
+			} else if (res) {
 				return Error(
 					std::error_condition(std::errc::io_error), "Short write when copying data");
+			} else {
+				return Error(
+					std::error_condition(std::errc::io_error), "Failed to write the output file");
 			}
 		}
 	}
