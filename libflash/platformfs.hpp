@@ -16,8 +16,8 @@
 #define PLATFORMFS_H
 
 #include <string>
-#include "common/error.hpp"
-#include "common/expected.hpp"
+#include <common/error.hpp>
+#include <common/expected.hpp>
 
 using namespace std;
 using mender::common::error::Error;
@@ -36,13 +36,20 @@ using ExpectedFile = Expected<File, Error>;
 using Bytes = std::vector<uint8_t>;
 
 ///
+/// \brief Create
+/// \param p: path
+/// \return
+///
+Error Create(const std::string &p);
+
+///
 /// \brief Open
 /// \param p: path
 /// \param read: open for reading
 /// \param write: open for writing
 /// \return
 ///
-ExpectedFile Open(const std::string &p, bool read = true, bool write = false); // todo: mode
+ExpectedFile Open(const std::string &p, bool read = true, bool write = false);
 
 ///
 /// \brief Close
@@ -103,6 +110,12 @@ ExpectedSize Tell(File f);
 /// \return SDTIN
 ///
 File GetInputStream();
+
+///
+/// \brief GetInputStream
+/// \return invalid file
+///
+File GetInvalidFile();
 
 ///
 /// \brief IsSpecialBlockDevice

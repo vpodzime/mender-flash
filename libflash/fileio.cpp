@@ -12,21 +12,26 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-#include "fileio.hpp"
-
+#include <fileio.hpp>
 #include <sstream>
 
 mender::io::FileReader::FileReader(mender::io::File f) :
-	mFd(f) {
+	fd_(f) {
+}
+
+mender::io::FileReader::~FileReader() {
+	if (fd_ != mender::io::GetInvalidFile()) {
+		mender::io::Close(fd_);
+	}
 }
 
 ExpectedSize mender::io::FileReader::Read(
 	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
-	return mender::io::Read(mFd, &*start, end - start);
+	return mender::io::Read(fd_, &*start, end - start);
 }
 
 ExpectedSize mender::io::FileReader::Tell() const {
-	return mender::io::Tell(mFd);
+	return mender::io::Tell(fd_);
 }
 
 mender::io::InputStreamReader::InputStreamReader() :
@@ -37,7 +42,7 @@ ExpectedSize mender::io::InputStreamReader::Read(
 	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
 	auto res = FileReader::Read(start, end);
 	if (!res) {
-		return res.error();
+		return res;
 	}
 	mReadBytes += res.value();
 	return res;
@@ -56,23 +61,25 @@ mender::io::LimitedFlushingWriter::LimitedFlushingWriter(
 
 ExpectedSize mender::io::LimitedFlushingWriter::Write(
 	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
-	auto pos = mender::io::Tell(mFd);
+	auto pos = mender::io::Tell(fd_);
 	if (!pos) {
 		return pos.error();
 	}
 	auto dataLen = end - start;
 	if (mWritingLimit && pos.value() + dataLen > mWritingLimit) {
-		return Error(std::error_condition(std::errc::io_error), "Error writing beyound the limit");
+		std::stringstream ss;
+		ss << "Error writing beyound the limit of " << mWritingLimit << " bytes";
+		return Error(std::error_condition(std::errc::io_error), ss.str());
 	}
 	auto res = FileWriter::Write(start, end);
 	if (res) {
 		mUnflushedBytesWritten += res.value();
 		if (mUnflushedBytesWritten >= mFlushIntervalBytes) {
-			auto flushRes = mender::io::Flush(mFd);
+			auto flushRes = mender::io::Flush(fd_);
 			if (NoError != flushRes) {
 				return Error(std::error_condition(std::errc::io_error), flushRes.message);
 			} else {
-				mUnflushedBytesWritten = 0;
+				mUnflushedBytesWritten -= mFlushIntervalBytes;
 			}
 		}
 	}
@@ -80,42 +87,54 @@ ExpectedSize mender::io::LimitedFlushingWriter::Write(
 }
 
 mender::io::FileWriter::FileWriter(File f) :
-	mFd(f) {
+	fd_(f) {
+}
+
+mender::io::FileWriter::~FileWriter() {
+	if (fd_ != mender::io::GetInvalidFile()) {
+		mender::io::Close(fd_);
+	}
 }
 
 ExpectedSize mender::io::FileWriter::Write(
 	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
-	return mender::io::Write(mFd, (&*start), end - start);
+	return mender::io::Write(fd_, &*start, end - start);
 }
 
 mender::io::FileReadWriter::FileReadWriter(File f) :
-	mFd(f) {
+	fd_(f) {
+}
+
+mender::io::FileReadWriter::~FileReadWriter() {
+	if (fd_ != mender::io::GetInvalidFile()) {
+		mender::io::Close(fd_);
+	}
 }
 
 ExpectedSize mender::io::FileReadWriter::Read(
 	vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) {
-	return mender::io::Read(mFd, (&*start), end - start);
+	return mender::io::Read(fd_, &*start, end - start);
 }
 
 ExpectedSize mender::io::FileReadWriter::Write(
 	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
-	return mender::io::Write(mFd, (&*start), end - start);
+	return mender::io::Write(fd_, &*start, end - start);
 }
 
 mender::io::FileReadWriterSeeker::FileReadWriterSeeker(FileWriter &writer) :
-	FileReadWriter(writer.GetFile()),
-	mWriter(writer) {
+	FileReadWriter(writer.fd_),
+	writer_(writer) {
 }
 
 ExpectedSize mender::io::FileReadWriterSeeker::Write(
 	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
-	return mWriter.Write(start, end);
+	return writer_.Write(start, end);
 }
 
 Error mender::io::FileReadWriterSeeker::SeekSet(uint64_t pos) {
-	return mender::io::SeekSet(mFd, pos);
+	return mender::io::SeekSet(fd_, pos);
 }
 
 ExpectedSize mender::io::FileReadWriterSeeker::Tell() const {
-	return mender::io::Tell(mFd);
+	return mender::io::Tell(fd_);
 }

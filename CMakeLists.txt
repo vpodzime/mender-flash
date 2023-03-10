@@ -124,16 +124,16 @@ include(GoogleTest)
 set(MENDER_TEST_FLAGS EXTRA_ARGS --gtest_output=xml:${CMAKE_SOURCE_DIR}/reports/)
 
 # Find all the source files in the flash and common directories
-file(GLOB FLASH_SOURCES "libflash/fileio.cpp" "libflash/optimized_writer.cpp" "libflash/platformfs.cpp")
-file(GLOB COMMON_SOURCES "common/io.cpp" "common/io.cpp" "common/error.cpp" "common/io.cpp")
-file(GLOB TESTLIB_SOURCES "common/testing.cpp")
+set(FLASH_SOURCES "libflash/fileio.cpp" "libflash/optimized_writer.cpp" "libflash/platformfs.cpp")
+set(COMMON_SOURCES "common/io.cpp" "common/io.cpp" "common/error.cpp" "common/io.cpp" "common/common.cpp")
+set(TESTLIB_SOURCES "common/testing.cpp")
 
 # Combine the source files from both directories into one list
 set(LIB_SOURCES ${FLASH_SOURCES} ${COMMON_SOURCES})
 
 # Create a static library from the combined source files
 add_library(flashlib STATIC ${LIB_SOURCES})
-target_include_directories(flashlib PUBLIC ${CMAKE_SOURCE_DIR})
+target_include_directories(flashlib PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libflash)
 target_link_libraries(flashlib PUBLIC crossplatform_compiler_flags)
 
 add_library(testlib STATIC ${TESTLIB_SOURCES})
@@ -141,6 +141,6 @@ target_include_directories(testlib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(testlib PUBLIC platform_compiler_flags)
 
 add_executable(mender-flash_test EXCLUDE_FROM_ALL "main_test.cpp" "flash_test/optimized_writer_test.cpp" "flash_test/platformfs_test.cpp")
-target_include_directories(mender-flash_test PUBLIC . libflash common)
+target_include_directories(mender-flash_test PUBLIC ${CMAKE_SOURCE_DIR} libflash common)
 target_link_libraries(mender-flash_test PRIVATE GTest::gtest_main flashlib testlib)
 gtest_discover_tests(mender-flash_test ${MENDER_TEST_FLAGS})

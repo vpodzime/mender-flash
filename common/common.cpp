@@ -12,40 +12,32 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-#pragma once
+#include <common/common.hpp>
+#include <common/error.hpp>
 
-#include <fileio.hpp>
+#include <cerrno>
+#include <cstdlib>
 
 namespace mender {
+namespace common {
 
-class OptimizedWriter {
-public:
-	OptimizedWriter(
-		io::FileReader &reader,
-		io::FileReadWriterSeeker &writer,
-		size_t blockSize = 1024 * 1024,
-		size_t volumeSize = 0);
-	common::error::Error Copy(bool optimized);
-
-	void PrintStatistics() const;
-
-	struct Statistics {
-		uint32_t blocksWritten_ {0};
-		uint32_t blocksOmitted_ {0};
-		size_t bytesWritten_ {0};
-	};
-
-	const Statistics &GetStatistics() const {
-		return statistics_;
+mender::common::expected::ExpectedLongLong StringToLongLong(const string &str, int base) {
+	char *end;
+	errno = 0;
+	long long num = strtoll(str.c_str(), &end, base);
+	if (errno != 0) {
+		int int_error = errno;
+		return mender::common::error::Error(
+			std::error_code(int_error, std::system_category()).default_error_condition(), "");
+	}
+	if (end != &*str.end()) {
+		return mender::common::error::Error(
+			std::make_error_condition(errc::invalid_argument),
+			str + " had trailing non-numeric data");
 	}
 
-private:
-	size_t blockSize_;
-	io::FileReader &reader_;
-	io::FileReadWriterSeeker &readWriter_;
-	size_t volumeSize_ {0};
+	return num;
+}
 
-	Statistics statistics_;
-};
-
+} // namespace common
 } // namespace mender

@@ -14,15 +14,11 @@
 
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "fileio.hpp"
-#include "testing.hpp"
-#include "optimized_writer.hpp"
+#include <fileio.hpp>
+#include <testing.hpp>
+#include <optimized_writer.hpp>
 
-class OptimizedWriterTest : public testing::Test {
-protected:
-	void SetUp() override {
-	}
-};
+class OptimizedWriterTest : public testing::Test {};
 
 class StringFileReader : public mender::io::FileReader {
 public:
@@ -71,15 +67,15 @@ TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWrite) {
 	auto res = writer.Write(payloadBuf.begin(), payloadBuf.end());
 	ASSERT_TRUE(res) << res.error().message;
 	ASSERT_EQ(res.value(), expectedBytesWritten);
-
-	auto err = mender::io::Close(fd);
-	ASSERT_EQ(err, NoError);
 }
 
 TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWriteNegative) {
 	// prepare a temp dir
 	mender::common::testing::TemporaryDirectory tempDir;
 	auto path = tempDir.Path() + "/foo";
+
+	auto createRes = mender::io::Create(path);
+	ASSERT_EQ(createRes, NoError) << createRes;
 
 	auto f = mender::io::Open(path, true, true);
 	ASSERT_TRUE(f) << f.error().message;
@@ -94,8 +90,10 @@ TEST_F(OptimizedWriterTest, TestFlushingLimitWriterWriteNegative) {
 	auto res = writer.Write(payloadBuf.begin(), payloadBuf.end());
 	ASSERT_FALSE(res) << "Data written beyound the device limit";
 
-	auto err = mender::io::Close(fd);
-	ASSERT_EQ(err, NoError);
+	// check if the file is empty
+	auto sizeRes = mender::io::GetSize(fd);
+	ASSERT_TRUE(sizeRes);
+	ASSERT_EQ(0, sizeRes.value());
 }
 
 TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
@@ -113,25 +111,27 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 	mender::io::File fd = f.value();
 	mender::io::FileReader reader(fd);
 
-	// create writer
+	// create a writer
 	auto path2 = path + ".copy";
+	auto createRes = mender::io::Create(path2);
+	ASSERT_EQ(createRes, NoError) << createRes;
 	auto f2 = mender::io::Open(path2, true, true);
-	ASSERT_TRUE(f2) << f.error().message;
+	ASSERT_TRUE(f2) << f2.error().message;
 	mender::io::File fd2 = f2.value();
 	mender::io::FileWriter writer(fd2);
 
 	// create read-writer
 	mender::io::FileReadWriterSeeker readWriter(writer);
 
-	// creawte optimized-writer
+	// create optimized-writer
 	mender::OptimizedWriter optWriter(reader, readWriter);
 	auto copyRes = optWriter.Copy(true);
 	ASSERT_EQ(copyRes, NoError) << copyRes.message;
 
 	auto stats = optWriter.GetStatistics();
-	ASSERT_EQ(stats.mBlocksWritten, 10);
-	ASSERT_EQ(stats.mBlocksOmitted, 0);
-	ASSERT_EQ(stats.mBytesWritten, 10 * 1024 * 1024);
+	ASSERT_EQ(stats.blocksWritten_, 10);
+	ASSERT_EQ(stats.blocksOmitted_, 0);
+	ASSERT_EQ(stats.bytesWritten_, 10 * 1024 * 1024);
 
 	// rewind the files
 	mender::io::SeekSet(fd, 0);
@@ -142,9 +142,9 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 	ASSERT_EQ(copyRes2, NoError) << copyRes.message;
 
 	auto stats2 = optWriter.GetStatistics();
-	ASSERT_EQ(stats2.mBlocksWritten, 0);
-	ASSERT_EQ(stats2.mBlocksOmitted, 10);
-	ASSERT_EQ(stats2.mBytesWritten, 0);
+	ASSERT_EQ(stats2.blocksWritten_, 0);
+	ASSERT_EQ(stats2.blocksOmitted_, 10);
+	ASSERT_EQ(stats2.bytesWritten_, 0);
 
 	// rewind the files
 	mender::io::SeekSet(fd, 0);
@@ -155,14 +155,9 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 	ASSERT_EQ(copyRes3, NoError) << copyRes.message;
 
 	auto stats3 = optWriter.GetStatistics();
-	ASSERT_EQ(stats3.mBlocksWritten, 10);
-	ASSERT_EQ(stats3.mBlocksOmitted, 0);
-	ASSERT_EQ(stats3.mBytesWritten, 10 * 1024 * 1024);
-
-	auto err = mender::io::Close(fd);
-	ASSERT_EQ(err, NoError);
-	auto err2 = mender::io::Close(fd2);
-	ASSERT_EQ(err, NoError);
+	ASSERT_EQ(stats3.blocksWritten_, 10);
+	ASSERT_EQ(stats3.blocksOmitted_, 0);
+	ASSERT_EQ(stats3.bytesWritten_, 10 * 1024 * 1024);
 }
 
 TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
@@ -181,23 +176,25 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 	mender::io::FileReader reader(fd);
 
 	auto path2 = path + ".copy";
+	auto createRes = mender::io::Create(path2);
+	ASSERT_EQ(createRes, NoError) << createRes;
 	auto f2 = mender::io::Open(path2, true, true);
-	ASSERT_TRUE(f2) << f.error().message;
+	ASSERT_TRUE(f2) << f2.error().message;
 	mender::io::File fd2 = f2.value();
 	mender::io::FileWriter writer(fd2);
 
 	// create read-writer
 	mender::io::FileReadWriterSeeker readWriter(writer);
 
-	// creawte optimized-writer
+	// create optimized-writer
 	mender::OptimizedWriter optWriter(reader, readWriter);
 	auto copyRes = optWriter.Copy(true);
 	ASSERT_EQ(copyRes, NoError) << copyRes.message;
 
 	auto stats = optWriter.GetStatistics();
-	ASSERT_EQ(stats.mBlocksWritten, 10);
-	ASSERT_EQ(stats.mBlocksOmitted, 0);
-	ASSERT_EQ(stats.mBytesWritten, 10 * 1024 * 1024);
+	ASSERT_EQ(stats.blocksWritten_, 10);
+	ASSERT_EQ(stats.blocksOmitted_, 0);
+	ASSERT_EQ(stats.bytesWritten_, 10 * 1024 * 1024);
 
 	mender::io::Close(fd2);
 
@@ -213,15 +210,10 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 	// create read-writer
 	mender::io::FileReadWriterSeeker readWriter2(writer2);
 
-	// creawte optimized-writer
+	// create optimized-writer
 	mender::OptimizedWriter optWriter2(reader, readWriter2);
 	auto copyRes2 = optWriter.Copy(false);
 	ASSERT_NE(copyRes2, NoError);
-
-	auto err = mender::io::Close(fd);
-	ASSERT_EQ(err, NoError);
-	auto err2 = mender::io::Close(fd2);
-	ASSERT_EQ(err, NoError);
 }
 
 TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
@@ -241,6 +233,8 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
 		StringFileReader reader(tests[i].input);
 
 		// create writer
+		auto createRes = mender::io::Create(path);
+		ASSERT_EQ(createRes, NoError) << createRes;
 		auto f = mender::io::Open(path, true, true);
 		ASSERT_TRUE(f) << f.error().message;
 		mender::io::File fd = f.value();
@@ -255,11 +249,8 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
 		optWriter.Copy(true);
 
 		auto stats = optWriter.GetStatistics();
-		ASSERT_EQ(stats.mBlocksWritten, tests[i].expectedBlockWritten);
-		ASSERT_EQ(stats.mBlocksOmitted, 0);
-		ASSERT_EQ(stats.mBytesWritten, tests[i].expectedBytesWritten);
-
-		auto err = mender::io::Close(fd);
-		ASSERT_EQ(err, NoError);
+		ASSERT_EQ(stats.blocksWritten_, tests[i].expectedBlockWritten);
+		ASSERT_EQ(stats.blocksOmitted_, 0);
+		ASSERT_EQ(stats.bytesWritten_, tests[i].expectedBytesWritten);
 	}
 }

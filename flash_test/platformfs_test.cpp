@@ -14,15 +14,11 @@
 
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "libflash/platformfs.h"
-#include "testing.hpp"
+#include <libflash/platformfs.hpp>
+#include <testing.hpp>
 
 
-class PlatformFsTest : public testing::Test {
-protected:
-	void SetUp() override {
-	}
-};
+class PlatformFsTest : public testing::Test {};
 
 
 TEST_F(PlatformFsTest, OpenFile) {

@@ -14,8 +14,9 @@
 
 #include <iostream>
 
-#include "libflash/fileio.hpp"
-#include "libflash/optimized_writer.hpp"
+#include <libflash/fileio.hpp>
+#include <libflash/optimized_writer.hpp>
+#include <common/common.hpp>
 
 #include <getopt.h>
 
@@ -26,12 +27,12 @@ void PrintHelp() {
 }
 
 int main(int argc, char *argv[]) {
-	int volumeSize = 0;
+	long long volumeSize = 0;
 	std::string inputPath;
 	std::string outputPath;
-	const size_t blockSize = 1024 * 1024; // 1MB block size
+	const size_t blockSize = 1024 * 1024; // 1MiB block size
 
-	while (1) {
+	while (true) {
 		static struct option long_options[] = {
 			{"help", no_argument, 0, 'h'},
 			{"input-size", required_argument, 0, 's'},
@@ -49,10 +50,18 @@ int main(int argc, char *argv[]) {
 			PrintHelp();
 			return 0;
 
-		case 's':
-			volumeSize = atoi(optarg);
+		case 's': {
+			auto res = mender::common::StringToLongLong(optarg);
+			if (res) {
+				volumeSize = res.value();
+			} else {
+				std::cerr << res.error().message << std::endl;
+				;
+				PrintHelp();
+				exit(EXIT_FAILURE);
+			}
 			break;
-
+		}
 		case 'i':
 			inputPath = optarg;
 			break;
@@ -80,7 +89,7 @@ int main(int argc, char *argv[]) {
 	mender::io::File dstFile;
 
 	std::shared_ptr<mender::io::FileReader> reader;
-	if (inputPath == "stdin") {
+	if (inputPath == "-") {
 		srcFile = mender::io::GetInputStream();
 		reader = std::make_shared<mender::io::InputStreamReader>();
 	} else {
@@ -129,9 +138,9 @@ int main(int argc, char *argv[]) {
 	auto statistics = optWriter.GetStatistics();
 
 	std::cout << "================ STATISTICS ================" << std::endl;
-	std::cout << "Blocks written: " << statistics.mBlocksWritten << std::endl;
-	std::cout << "Blocks omitted: " << statistics.mBlocksOmitted << std::endl;
-	std::cout << "Bytes  written: " << statistics.mBytesWritten << std::endl;
+	std::cout << "Blocks written: " << statistics.blocksWritten_ << std::endl;
+	std::cout << "Blocks omitted: " << statistics.blocksOmitted_ << std::endl;
+	std::cout << "Bytes  written: " << statistics.bytesWritten_ << std::endl;
 	std::cout << "============================================" << std::endl;
 
 	if (srcFile != mender::io::GetInputStream()) {
