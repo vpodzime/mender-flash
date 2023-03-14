@@ -32,6 +32,7 @@ Error OptimizedWriter::Copy(bool optimized) {
 
 	io::Bytes rv(blockSize_);
 	io::Bytes wv(blockSize_);
+	bool volumeSizeReached = false;
 
 	while (true) {
 		auto pos = reader_.Tell();
@@ -41,18 +42,27 @@ Error OptimizedWriter::Copy(bool optimized) {
 		auto position = pos.value();
 
 		if (volumeSize_ && ((position + blockSize_) > volumeSize_)) {
-			return NoError;
+			volumeSizeReached = true;
 		}
 
 		auto result = reader_.Read(rv.begin(), rv.end());
 		if (!result) {
 			return result.error();
 		} else if (result.value() == 0) {
-			return NoError;
+			if (volumeSize_ && !volumeSizeReached) {
+				return Error(
+					std::errc::io_error,
+					"Size of the destination volume not reached, source too short.");
+			} else {
+				return NoError;
+			}
 		} else if (result.value() > rv.size()) {
 			return mender::common::error::MakeError(
 				mender::common::error::ProgrammingError,
 				"Read returned more bytes than requested. This is a bug in the Read function.");
+		} else if (volumeSizeReached) {
+			return Error(
+				std::errc::io_error, "Reached size of the destination volume, source too big.");
 		}
 
 		auto readBytes = result.value();
@@ -65,6 +75,8 @@ Error OptimizedWriter::Copy(bool optimized) {
 
 		bool skipWriting = false;
 		if (optimized) {
+			// not checking for short read, it is not expected unless
+			// writing to an empty file
 			auto readResult = readWriter_.Read(wv.begin(), wv.begin() + readBytes);
 			if (readResult && readResult.value() == readBytes) {
 				wv.resize(readResult.value());
@@ -73,13 +85,6 @@ Error OptimizedWriter::Copy(bool optimized) {
 					++statistics_.blocksOmitted_;
 				}
 			}
-#if 0
-			else if (!readResult) {
-				return readResult.error();
-			} else {
-				return Error(std::error_condition(std::errc::io_error), "Short read of the output data block");
-			}
-#endif
 		}
 
 		if (!skipWriting) {
