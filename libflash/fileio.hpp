@@ -46,9 +46,9 @@ public:
 		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
 
 protected:
-	size_t mWritingLimit {0};
-	uint32_t mFlushIntervalBytes;
-	uint32_t mUnflushedBytesWritten {0};
+	size_t writingLimit_ {0};
+	uint32_t flushIntervalBytes_;
+	uint32_t unflushedBytesWritten_ {0};
 };
 
 class FileReader : public common::io::Reader {
@@ -77,7 +77,7 @@ public:
 	virtual ExpectedSize Tell() const override;
 
 protected:
-	size_t mReadBytes;
+	size_t readBytes_;
 };
 
 class FileReadWriter : public common::io::ReadWriter {

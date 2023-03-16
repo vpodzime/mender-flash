@@ -44,19 +44,19 @@ ExpectedSize mender::io::InputStreamReader::Read(
 	if (!res) {
 		return res;
 	}
-	mReadBytes += res.value();
+	readBytes_ += res.value();
 	return res;
 }
 
 ExpectedSize mender::io::InputStreamReader::Tell() const {
-	return mReadBytes;
+	return readBytes_;
 }
 
 mender::io::LimitedFlushingWriter::LimitedFlushingWriter(
 	mender::io::File f, size_t limit, uint32_t flushInterval) :
 	FileWriter(f),
-	mWritingLimit(limit),
-	mFlushIntervalBytes(flushInterval) {
+	writingLimit_(limit),
+	flushIntervalBytes_(flushInterval) {
 }
 
 ExpectedSize mender::io::LimitedFlushingWriter::Write(
@@ -66,20 +66,20 @@ ExpectedSize mender::io::LimitedFlushingWriter::Write(
 		return pos.error();
 	}
 	auto dataLen = end - start;
-	if (mWritingLimit && pos.value() + dataLen > mWritingLimit) {
+	if (writingLimit_ && pos.value() + dataLen > writingLimit_) {
 		std::stringstream ss;
-		ss << "Error writing beyound the limit of " << mWritingLimit << " bytes";
+		ss << "Error writing beyound the limit of " << writingLimit_ << " bytes";
 		return Error(std::error_condition(std::errc::io_error), ss.str());
 	}
 	auto res = FileWriter::Write(start, end);
 	if (res) {
-		mUnflushedBytesWritten += res.value();
-		if (mUnflushedBytesWritten >= mFlushIntervalBytes) {
+		unflushedBytesWritten_ += res.value();
+		if (unflushedBytesWritten_ >= flushIntervalBytes_) {
 			auto flushRes = mender::io::Flush(fd_);
 			if (NoError != flushRes) {
 				return Error(std::error_condition(std::errc::io_error), flushRes.message);
 			} else {
-				mUnflushedBytesWritten -= mFlushIntervalBytes;
+				unflushedBytesWritten_ -= flushIntervalBytes_;
 			}
 		}
 	}

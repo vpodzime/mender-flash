@@ -143,10 +143,5 @@ int main(int argc, char *argv[]) {
 	std::cout << "Bytes  written: " << statistics.bytesWritten_ << std::endl;
 	std::cout << "============================================" << std::endl;
 
-	if (srcFile != mender::io::GetInputStream()) {
-		mender::io::Close(srcFile);
-	}
-	mender::io::Close(dstFile);
-
 	exit(EXIT_SUCCESS);
 }

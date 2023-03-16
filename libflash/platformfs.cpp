@@ -191,10 +191,14 @@ ExpectedSize mender::io::WriteFile(const string &path, const Bytes &data) {
 		return MakeErrorFromErrno(ss);
 	}
 	ssize_t bytesWritten = write(fd, data.data(), data.size());
-	Close(fd);
-	if (bytesWritten <= 0) {
-		return Error(std::error_condition(std::errc::io_error), "Error writing data");
+	if (errno != 0) {
+		std::stringstream ss;
+		ss << "Error writing data: " << path;
+		auto err = MakeErrorFromErrno(ss);
+		Close(fd);
+		return err;
 	} else {
+		Close(fd);
 		return bytesWritten;
 	}
 }
@@ -216,7 +220,9 @@ Error mender::io::SetUbiUpdateVolume(File f, size_t size) {
 	errno = 0;
 	ioctl(f, UBI_IOCVOLUP, &size);
 	if (errno != 0) {
-		return Error(std::error_condition(std::errc::io_error), "Error updating UBI volume");
+		std::stringstream ss;
+		ss << "Error updating UBI volume";
+		return MakeErrorFromErrno(ss);
 	}
 	return NoError;
 }
