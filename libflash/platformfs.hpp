@@ -20,27 +20,29 @@
 #include <common/expected.hpp>
 
 using namespace std;
+namespace expected = mender::common::expected;
 using mender::common::error::Error;
 using mender::common::error::NoError;
-using mender::common::expected::Expected;
-using ExpectedSize = Expected<size_t, Error>;
-using ExpectedString = Expected<std::string, Error>;
-using ExpectedBool = Expected<bool, Error>;
+using ExpectedSize = expected::expected<size_t, Error>;
+using ExpectedString = expected::expected<std::string, Error>;
+using ExpectedBool = expected::expected<bool, Error>;
 
 namespace mender {
 namespace io {
 
 
 using File = int;
-using ExpectedFile = Expected<File, Error>;
+using ExpectedFile = expected::expected<File, Error>;
 using Bytes = std::vector<uint8_t>;
+
+const int DEFAULT_FILE_PERMISSION = 0644;
 
 ///
 /// \brief Create
 /// \param p: path
 /// \return
 ///
-Error Create(const std::string &p);
+Error Create(const std::string &p, int filePermission = DEFAULT_FILE_PERMISSION);
 
 ///
 /// \brief Open

@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 	mender::io::LimitedFlushingWriter flushWriter(dstFile, volumeSize, blockSize);
 	mender::io::FileWriter writer(dstFile);
 	mender::io::FileReadWriterSeeker readwriter(isUBI ? writer : flushWriter);
-	mender::OptimizedWriter optWriter(*reader, readwriter, blockSize, volumeSize);
+	mender::io::OptimizedWriter optWriter(*reader, readwriter, blockSize, volumeSize);
 	optWriter.Copy(!isUBI);
 
 	auto statistics = optWriter.GetStatistics();

@@ -62,14 +62,14 @@ mender::io::LimitedFlushingWriter::LimitedFlushingWriter(
 ExpectedSize mender::io::LimitedFlushingWriter::Write(
 	vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) {
 	auto pos = mender::io::Tell(fd_);
-	if (!pos) {
-		return pos.error();
+	if (!pos.has_value()) {
+		return pos;
 	}
 	auto dataLen = end - start;
 	if (writingLimit_ && pos.value() + dataLen > writingLimit_) {
 		std::stringstream ss;
 		ss << "Error writing beyound the limit of " << writingLimit_ << " bytes";
-		return Error(std::error_condition(std::errc::io_error), ss.str());
+		return expected::unexpected(Error(std::error_condition(std::errc::io_error), ss.str()));
 	}
 	auto res = FileWriter::Write(start, end);
 	if (res) {
@@ -77,7 +77,8 @@ ExpectedSize mender::io::LimitedFlushingWriter::Write(
 		if (unflushedBytesWritten_ >= flushIntervalBytes_) {
 			auto flushRes = mender::io::Flush(fd_);
 			if (NoError != flushRes) {
-				return Error(std::error_condition(std::errc::io_error), flushRes.message);
+				return expected::unexpected(
+					Error(std::error_condition(std::errc::io_error), flushRes.message));
 			} else {
 				unflushedBytesWritten_ -= flushIntervalBytes_;
 			}

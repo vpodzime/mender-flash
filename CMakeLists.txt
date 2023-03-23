@@ -133,7 +133,7 @@ set(LIB_SOURCES ${FLASH_SOURCES} ${COMMON_SOURCES})
 
 # Create a static library from the combined source files
 add_library(flashlib STATIC ${LIB_SOURCES})
-target_include_directories(flashlib PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libflash)
+target_include_directories(flashlib PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/libflash ${CMAKE_SOURCE_DIR}/common)
 target_link_libraries(flashlib PUBLIC crossplatform_compiler_flags)
 
 add_library(testlib STATIC ${TESTLIB_SOURCES})

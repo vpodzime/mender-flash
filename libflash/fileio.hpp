@@ -26,7 +26,10 @@ public:
 	virtual ~FileWriter();
 	virtual ExpectedSize Write(
 		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
-
+	///
+	/// \brief GetFile
+	/// \return Takes ownership of the file
+	///
 	File GetFile() {
 		File ret = fd_;
 		fd_ = mender::io::GetInvalidFile();
@@ -59,6 +62,10 @@ public:
 		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override;
 	virtual ExpectedSize Tell() const;
 
+	///
+	/// \brief GetFile
+	/// \return Takes ownership of the file
+	///
 	File GetFile() {
 		File ret = fd_;
 		fd_ = mender::io::GetInvalidFile();
@@ -88,7 +95,10 @@ public:
 		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override;
 	virtual ExpectedSize Write(
 		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) override;
-
+	///
+	/// \brief GetFile
+	/// \return Takes ownership of the file
+	///
 	File GetFile() {
 		File ret = fd_;
 		fd_ = mender::io::GetInvalidFile();

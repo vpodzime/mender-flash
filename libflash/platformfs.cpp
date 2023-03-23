@@ -21,33 +21,36 @@
 #include <sys/stat.h>
 
 #include <sstream>
+#include <cstring>
 
 #include <sys/sysmacros.h>
 #include <mtd/ubi-user.h>
 
-static Error MakeErrorFromErrno(std::stringstream &str) {
-	int int_error = errno;
-	str << " errno: " << errno;
+static const int InvalidFileDescriptor = -1;
+static const int UBIMajorDevNo = 10;
+
+static Error MakeErrorFromErrno(int err, std::stringstream &str) {
+	str << strerror(err);
 	return mender::common::error::Error(
-		std::error_code(int_error, std::system_category()).default_error_condition(), str.str());
+		std::error_code(err, std::generic_category()).default_error_condition(), str.str());
 }
 
-Error mender::io::Create(const string &p) {
+Error mender::io::Create(const string &p, int filePermission) {
 	errno = 0;
-	mender::io::File fd = open(p.c_str(), O_WRONLY | O_CREAT, 0644);
+	mender::io::File fd = open(p.c_str(), O_WRONLY | O_CREAT, filePermission);
 
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Failed to open file: " << p;
-		return MakeErrorFromErrno(ss);
+		return MakeErrorFromErrno(errno, ss);
 	}
 	return Close(fd);
 }
 
 mender::io::ExpectedFile mender::io::Open(const string &p, bool read, bool write) {
 	if (!read && !write) {
-		return Error(
-			std::error_condition(std::errc::invalid_argument), "Wrong access flags provided");
+		return expected::unexpected(Error(
+			std::error_condition(std::errc::invalid_argument), "Wrong access flags provided"));
 	}
 	int flags = (read && write) ? O_RDWR : write ? O_WRONLY : O_RDONLY;
 
@@ -57,7 +60,7 @@ mender::io::ExpectedFile mender::io::Open(const string &p, bool read, bool write
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Failed to open file: " << p;
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	}
 	return fd;
 }
@@ -68,7 +71,7 @@ Error mender::io::Close(File f) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Failed to close the file";
-		return MakeErrorFromErrno(ss);
+		return MakeErrorFromErrno(errno, ss);
 	}
 	return NoError;
 }
@@ -80,7 +83,7 @@ ExpectedSize mender::io::GetSize(mender::io::File f) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "GetSize: Failed to obtain stats of the file";
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	}
 
 	size_t size;
@@ -89,7 +92,7 @@ ExpectedSize mender::io::GetSize(mender::io::File f) {
 		if (errno != 0) {
 			std::stringstream ss;
 			ss << "Failed to get file size";
-			return MakeErrorFromErrno(ss);
+			return expected::unexpected(MakeErrorFromErrno(errno, ss));
 		}
 	} else {
 		size = statbuf.st_size;
@@ -102,10 +105,13 @@ ExpectedSize mender::io::Read(File f, uint8_t *dataPtr, size_t dataLen) {
 	while (true) {
 		errno = 0;
 		ssize_t readRes = read(f, dataPtr + bytesRead, dataLen - bytesRead);
+		if (errno == EINTR) {
+			continue;
+		}
 		if (errno != 0) {
 			std::stringstream ss;
 			ss << "Error while reading data";
-			return MakeErrorFromErrno(ss);
+			return expected::unexpected(MakeErrorFromErrno(errno, ss));
 		}
 		bytesRead += readRes;
 		if (readRes == 0 || bytesRead == dataLen) {
@@ -116,12 +122,19 @@ ExpectedSize mender::io::Read(File f, uint8_t *dataPtr, size_t dataLen) {
 }
 
 ExpectedSize mender::io::Write(File f, const uint8_t *dataPtr, size_t dataLen) {
-	errno = 0;
-	ssize_t bytesWritten = write(f, dataPtr, dataLen);
-	if (errno != 0) {
-		std::stringstream ss;
-		ss << "Error while writing data";
-		return MakeErrorFromErrno(ss);
+	ssize_t bytesWritten = 0;
+	while (true) {
+		errno = 0;
+		bytesWritten = write(f, dataPtr, dataLen);
+		if (errno == EINTR) {
+			continue;
+		}
+		if (errno != 0) {
+			std::stringstream ss;
+			ss << "Error while writing data";
+			return expected::unexpected(MakeErrorFromErrno(errno, ss));
+		}
+		break;
 	}
 	return bytesWritten;
 }
@@ -132,7 +145,7 @@ Error mender::io::Flush(File f) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Error while flushing data";
-		return MakeErrorFromErrno(ss);
+		return MakeErrorFromErrno(errno, ss);
 	}
 	return NoError;
 }
@@ -143,7 +156,7 @@ Error mender::io::SeekSet(mender::io::File f, uint64_t pos) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Can't set seek on the file";
-		return MakeErrorFromErrno(ss);
+		return MakeErrorFromErrno(errno, ss);
 	}
 	return NoError;
 }
@@ -154,7 +167,7 @@ ExpectedSize mender::io::Tell(mender::io::File f) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Error while getting file position";
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	}
 	return pos;
 }
@@ -164,7 +177,7 @@ mender::io::File mender::io::GetInputStream() {
 }
 
 mender::io::File mender::io::GetInvalidFile() {
-	return -1;
+	return InvalidFileDescriptor;
 }
 
 ExpectedBool mender::io::IsSpecialBlockDevice(File f) {
@@ -174,7 +187,7 @@ ExpectedBool mender::io::IsSpecialBlockDevice(File f) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "IsSpecialBlockDevice: Failed to obtain stats of the file";
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	} else if (S_ISBLK(statbuf.st_mode)) {
 		return true;
 	}
@@ -188,13 +201,13 @@ ExpectedSize mender::io::WriteFile(const string &path, const Bytes &data) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Failed to open file: " << path;
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	}
 	ssize_t bytesWritten = write(fd, data.data(), data.size());
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Error writing data: " << path;
-		auto err = MakeErrorFromErrno(ss);
+		auto err = expected::unexpected(MakeErrorFromErrno(errno, ss));
 		Close(fd);
 		return err;
 	} else {
@@ -210,10 +223,10 @@ ExpectedBool mender::io::IsUBIDevice(const string &path) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "IsSpecialBlockDevice: Failed to obtain stats of the file";
-		return MakeErrorFromErrno(ss);
+		return expected::unexpected(MakeErrorFromErrno(errno, ss));
 	}
 
-	return S_ISBLK(statbuf.st_mode) && major(statbuf.st_rdev) == 10;
+	return S_ISBLK(statbuf.st_mode) && major(statbuf.st_rdev) == UBIMajorDevNo;
 }
 
 Error mender::io::SetUbiUpdateVolume(File f, size_t size) {
@@ -222,7 +235,7 @@ Error mender::io::SetUbiUpdateVolume(File f, size_t size) {
 	if (errno != 0) {
 		std::stringstream ss;
 		ss << "Error updating UBI volume";
-		return MakeErrorFromErrno(ss);
+		return MakeErrorFromErrno(errno, ss);
 	}
 	return NoError;
 }

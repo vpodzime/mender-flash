@@ -15,7 +15,7 @@
 #include <optimized_writer.hpp>
 #include <iostream>
 
-using namespace mender;
+using namespace mender::io;
 
 OptimizedWriter::OptimizedWriter(
 	io::FileReader &reader, io::FileReadWriterSeeker &writer, size_t blockSize, size_t volumeSize) :

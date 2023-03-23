@@ -12,11 +12,13 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-#pragma once
+#ifndef OPRIMIZED_WRITER_CPP
+#define OPRIMIZED_WRITER_CPP
 
 #include <fileio.hpp>
 
 namespace mender {
+namespace io {
 
 class OptimizedWriter {
 public:
@@ -32,7 +34,7 @@ public:
 	struct Statistics {
 		uint32_t blocksWritten_ {0};
 		uint32_t blocksOmitted_ {0};
-		size_t bytesWritten_ {0};
+		uint64_t bytesWritten_ {0};
 	};
 
 	const Statistics &GetStatistics() const {
@@ -48,4 +50,7 @@ private:
 	Statistics statistics_;
 };
 
+} // namespace io
 } // namespace mender
+
+#endif

@@ -124,7 +124,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriter) {
 	mender::io::FileReadWriterSeeker readWriter(writer);
 
 	// create optimized-writer
-	mender::OptimizedWriter optWriter(reader, readWriter);
+	mender::io::OptimizedWriter optWriter(reader, readWriter);
 	auto copyRes = optWriter.Copy(true);
 	ASSERT_EQ(copyRes, NoError) << copyRes.message;
 
@@ -190,7 +190,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 		mender::io::FileReadWriterSeeker readWriter(writer);
 
 		// create optimized-writer
-		mender::OptimizedWriter optWriter(reader, readWriter);
+		mender::io::OptimizedWriter optWriter(reader, readWriter);
 		auto copyRes = optWriter.Copy(true);
 		ASSERT_EQ(copyRes, NoError) << copyRes.message;
 
@@ -215,7 +215,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 		mender::io::FileReadWriterSeeker readWriter2(writer2);
 
 		// create optimized-writer
-		mender::OptimizedWriter optWriter2(reader, readWriter2);
+		mender::io::OptimizedWriter optWriter2(reader, readWriter2);
 		auto copyRes2 = optWriter2.Copy(false);
 		ASSERT_NE(copyRes2, NoError);
 	}
@@ -235,7 +235,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 		mender::io::FileReadWriterSeeker readWriter3(writer3);
 
 		// create optimized-writer
-		mender::OptimizedWriter optWriter3(reader, readWriter3, 1024 * 1024, 11 * 1024 * 1024);
+		mender::io::OptimizedWriter optWriter3(reader, readWriter3, 1024 * 1024, 11 * 1024 * 1024);
 		auto copyRes3 = optWriter3.Copy(false);
 		ASSERT_NE(copyRes3, NoError);
 		ASSERT_EQ(
@@ -257,7 +257,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterFailure) {
 		mender::io::FileReadWriterSeeker readWriter4(writer4);
 
 		// create optimized-writer
-		mender::OptimizedWriter optWriter4(reader, readWriter4, 1024 * 1024, 9 * 1024 * 1024);
+		mender::io::OptimizedWriter optWriter4(reader, readWriter4, 1024 * 1024, 9 * 1024 * 1024);
 		auto copyRes4 = optWriter4.Copy(false);
 		ASSERT_NE(copyRes4, NoError);
 		ASSERT_EQ(copyRes4.message, "Reached size of the destination volume, source too big.");
@@ -292,7 +292,7 @@ TEST_F(OptimizedWriterTest, TestOptimizedWriterLimit) {
 		mender::io::FileReadWriterSeeker readWriter(writer);
 
 		// create optimized-writer
-		mender::OptimizedWriter optWriter(
+		mender::io::OptimizedWriter optWriter(
 			reader, readWriter, tests[i].blockSize, tests[i].inputSize);
 		optWriter.Copy(true);
 

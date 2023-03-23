@@ -30,12 +30,12 @@ namespace common {
 namespace io {
 
 using namespace std;
+namespace expected = mender::common::expected;
 
 using mender::common::error::Error;
 using mender::common::error::NoError;
-using mender::common::expected::Expected;
 
-using ExpectedSize = Expected<size_t, Error>;
+using ExpectedSize = expected::expected<size_t, Error>;
 
 class Reader {
 public:
@@ -44,7 +44,7 @@ public:
 	virtual ExpectedSize Read(vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) = 0;
 };
 using ReaderPtr = shared_ptr<Reader>;
-using ExpectedReaderPtr = Expected<ReaderPtr, Error>;
+using ExpectedReaderPtr = expected::expected<ReaderPtr, Error>;
 
 class Writer {
 public:
@@ -54,11 +54,11 @@ public:
 		vector<uint8_t>::const_iterator start, vector<uint8_t>::const_iterator end) = 0;
 };
 using WriterPtr = shared_ptr<Writer>;
-using ExpectedWriterPtr = Expected<WriterPtr, Error>;
+using ExpectedWriterPtr = expected::expected<WriterPtr, Error>;
 
 class ReadWriter : virtual public Reader, virtual public Writer {};
 using ReadWriterPtr = shared_ptr<ReadWriter>;
-using ExpectedReadWriterPtr = Expected<ReadWriterPtr, Error>;
+using ExpectedReadWriterPtr = expected::expected<ReadWriterPtr, Error>;
 
 /**
  * Stream the data from `src` to `dst` until encountering EOF or an error.
@@ -87,7 +87,7 @@ public:
 		if (is_.bad()) {
 			int int_error = errno;
 			return Error(
-				std::error_code(int_error, std::system_category()).default_error_condition(), "");
+				std::error_code(int_error, std::generic_category()).default_error_condition(), "");
 		}
 		return is_.gcount();
 	}
