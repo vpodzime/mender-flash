@@ -86,8 +86,8 @@ public:
 		is_.read(reinterpret_cast<char *>(&*start), end - start);
 		if (is_.bad()) {
 			int int_error = errno;
-			return Error(
-				std::error_code(int_error, std::generic_category()).default_error_condition(), "");
+			return expected::unexpected(Error(
+				std::error_code(int_error, std::generic_category()).default_error_condition(), ""));
 		}
 		return is_.gcount();
 	}

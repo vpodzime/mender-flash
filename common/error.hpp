@@ -53,14 +53,15 @@ public:
 		return this->message == other.message && this->code == other.code;
 	}
 
-	operator bool() const {
-		return static_cast<bool>(this->code);
+	bool operator!=(const Error &other) const {
+		return this->message != other.message || this->code != other.code;
 	}
 
 	std::string String() const {
 		return code.message() + ": " + message;
 	}
 };
+std::ostream &operator<<(std::ostream &os, const Error &err);
 
 extern const Error NoError;
 
