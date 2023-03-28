@@ -24,15 +24,15 @@ class StringFileReader : public mender::io::FileReader {
 public:
 	StringFileReader(const std::string &str) :
 		mender::io::FileReader(-1),
-		mS(str),
-		mReader(mS) {
+		ss_(str),
+		reader_(ss_) {
 	}
 	virtual ExpectedSize Tell() const override {
 		return bytesRead_;
 	}
 	virtual ExpectedSize Read(
 		vector<uint8_t>::iterator start, vector<uint8_t>::iterator end) override {
-		auto ret = mReader.Read(start, end);
+		auto ret = reader_.Read(start, end);
 		if (ret) {
 			bytesRead_ += ret.value();
 		}
@@ -40,8 +40,8 @@ public:
 	}
 
 private:
-	std::stringstream mS;
-	mender::common::io::StreamReader mReader;
+	std::stringstream ss_;
+	mender::common::io::StreamReader reader_;
 	size_t bytesRead_ {0};
 };
 
