@@ -17,7 +17,7 @@ include:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
-test:
+test:unit:
   tags:
     - mender-qa-worker-generic-light
   stage: test
@@ -40,7 +40,7 @@ publish:tests:
   stage: publish
   image: python:3.11
   dependencies:
-    - test
+    - test:unit
   before_script:
     # Install dependencies
     - apt update && apt install -yyq lcov
