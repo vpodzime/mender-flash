@@ -133,7 +133,12 @@ int main(int argc, char *argv[]) {
 	mender::io::FileWriter writer(dstFile);
 	mender::io::FileReadWriterSeeker readwriter(isUBI ? writer : flushWriter);
 	mender::io::OptimizedWriter optWriter(*reader, readwriter, blockSize, volumeSize);
-	optWriter.Copy(!isUBI);
+
+	auto err = optWriter.Copy(!isUBI);
+	if (err != mender::common::error::NoError) {
+		std::cerr << err.String() << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
 	auto statistics = optWriter.GetStatistics();
 
