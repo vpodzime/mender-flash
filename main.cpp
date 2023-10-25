@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
 		auto src = mender::io::Open(inputPath);
 		if (!src) {
 			std::cerr << "Failed to open source: " << inputPath << " (" << src.error().message
-					  << ")";
+					  << ")" << std::endl;
 			exit(EXIT_FAILURE);
 		}
 		srcFile = src.value();
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
 
 	if (!dst) {
 		std::cerr << "Failed to open destination: " << outputPath << " (" << dst.error().message
-				  << ")";
+				  << ")" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	dstFile = dst.value();
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 	if (isUBI) {
 		auto res = mender::io::SetUbiUpdateVolume(dstFile, volumeSize);
 		if (res != mender::common::error::NoError) {
-			std::cerr << res.message;
+			std::cerr << res.message << std::endl;
 			exit(EXIT_FAILURE);
 		}
 	}
