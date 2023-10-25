@@ -27,7 +27,7 @@ void PrintHelp() {
 }
 
 int main(int argc, char *argv[]) {
-	long long volumeSize = 0;
+	size_t volumeSize = 0;
 	std::string inputPath;
 	std::string outputPath;
 	const size_t blockSize = 1024 * 1024; // 1MiB block size
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 		case 's': {
 			auto res = mender::common::StringToLongLong(optarg);
 			if (res) {
-				volumeSize = res.value();
+				volumeSize = (size_t) res.value();
 			} else {
 				std::cerr << res.error().message << std::endl;
 				;
@@ -141,6 +141,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	auto statistics = optWriter.GetStatistics();
+
+	if (volumeSize != 0 && statistics.bytesTotal_ != volumeSize) {
+		std::cerr << "Partial copy. Expected " << volumeSize << " bytes, copied "
+				  << statistics.bytesTotal_ << " bytes" << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
 	std::cout << "================ STATISTICS ================" << std::endl;
 	std::cout << "Blocks written: " << statistics.blocksWritten_ << std::endl;

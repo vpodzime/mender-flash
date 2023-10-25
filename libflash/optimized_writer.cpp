@@ -29,6 +29,7 @@ Error OptimizedWriter::Copy(bool optimized) {
 	statistics_.blocksWritten_ = 0;
 	statistics_.blocksOmitted_ = 0;
 	statistics_.bytesWritten_ = 0;
+	statistics_.bytesTotal_ = 0;
 
 	io::Bytes rv(blockSize_);
 	io::Bytes wv(blockSize_);
@@ -101,6 +102,7 @@ Error OptimizedWriter::Copy(bool optimized) {
 		}
 
 		position += readBytes;
+		statistics_.bytesTotal_ += readBytes;
 	}
 	return NoError;
 }
