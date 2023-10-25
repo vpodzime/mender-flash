@@ -34,13 +34,9 @@ Error OptimizedWriter::Copy(bool optimized) {
 	io::Bytes wv(blockSize_);
 	bool volumeSizeReached = false;
 
-	while (true) {
-		auto pos = reader_.Tell();
-		if (!pos) {
-			return pos.error();
-		}
-		auto position = pos.value();
+	size_t position = 0;
 
+	while (true) {
 		if (volumeSize_ && ((position + blockSize_) > volumeSize_)) {
 			volumeSizeReached = true;
 		}
@@ -103,6 +99,8 @@ Error OptimizedWriter::Copy(bool optimized) {
 				return res.error();
 			}
 		}
+
+		position += readBytes;
 	}
 	return NoError;
 }
