@@ -32,9 +32,10 @@ public:
 	void PrintStatistics() const;
 
 	struct Statistics {
-		uint32_t blocksWritten_ {0};
-		uint32_t blocksOmitted_ {0};
-		uint64_t bytesWritten_ {0};
+		size_t blocksWritten_ {0};
+		size_t blocksOmitted_ {0};
+		size_t bytesWritten_ {0};
+		size_t bytesTotal_ {0};
 	};
 
 	const Statistics &GetStatistics() const {

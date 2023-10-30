@@ -29,18 +29,15 @@ Error OptimizedWriter::Copy(bool optimized) {
 	statistics_.blocksWritten_ = 0;
 	statistics_.blocksOmitted_ = 0;
 	statistics_.bytesWritten_ = 0;
+	statistics_.bytesTotal_ = 0;
 
 	io::Bytes rv(blockSize_);
 	io::Bytes wv(blockSize_);
 	bool volumeSizeReached = false;
 
-	while (true) {
-		auto pos = reader_.Tell();
-		if (!pos) {
-			return pos.error();
-		}
-		auto position = pos.value();
+	size_t position = 0;
 
+	while (true) {
 		if (volumeSize_ && ((position + blockSize_) > volumeSize_)) {
 			volumeSizeReached = true;
 		}
@@ -103,6 +100,9 @@ Error OptimizedWriter::Copy(bool optimized) {
 				return res.error();
 			}
 		}
+
+		position += readBytes;
+		statistics_.bytesTotal_ += readBytes;
 	}
 	return NoError;
 }

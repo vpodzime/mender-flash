@@ -95,7 +95,7 @@ Error Flush(File f);
 ///
 /// \brief SeekSet
 /// \param f: file
-/// \param pos: posiiton to be set on the file
+/// \param pos: position to be set on the file
 /// \return
 ///
 Error SeekSet(File f, uint64_t pos);
@@ -103,7 +103,7 @@ Error SeekSet(File f, uint64_t pos);
 ///
 /// \brief Tell
 /// \param f: file
-/// \return current posiiton of the file seek
+/// \return current position of the file seek
 ///
 ExpectedSize Tell(File f);
 
