@@ -638,6 +638,31 @@ bad_input_test() {
   return $ret
 }
 
+err_input_test() {
+  local n_bytes=$BLOCK
+  local output="${TEST_DIR}/test.out"
+  local out="${TEST_DIR}/out"
+  local err_out="${TEST_DIR}/err_out"
+
+  # directory can be opened but read() gives EISDIR
+  $MEN_FLASH -i / -o "$output" 2> "$err_out" >/dev/null
+  if [ $? = 1 ]; then
+    # we actually want to see a failure here
+    ret=0
+  fi
+
+  if [ $ret = 0 ]; then
+    grep "Failed to read data" "$err_out" >/dev/null || { echo "Wrong error message" && ret=1; }
+    if [ $ret != 0 ]; then
+      cat "$err_out"
+    fi
+  fi
+
+  rm -f "$output"
+  rm -f "$err_out"
+  return $ret
+}
+
 bad_output_test() {
   local n_bytes=$BLOCK
   local input="${TEST_DIR}/test.out"
@@ -908,6 +933,7 @@ run_test pipe_partial_match_write_everything_test
 
 run_test no_input_test
 run_test bad_input_test
+run_test err_input_test
 run_test bad_output_test
 run_test bad_sync_interval_test
 run_test bad_size_test
