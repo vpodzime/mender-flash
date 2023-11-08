@@ -30,7 +30,7 @@ static const int InvalidFileDescriptor = -1;
 static const int UBIMajorDevNo = 10;
 
 static Error MakeErrorFromErrno(int err, std::stringstream &str) {
-	str << strerror(err);
+	str << ": " << strerror(err);
 	return mender::common::error::Error(
 		std::error_code(err, std::generic_category()).default_error_condition(), str.str());
 }
