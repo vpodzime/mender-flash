@@ -15,7 +15,8 @@
 *_test
 
 # Build artifacts
-/mender-flash
+config.h
+mender-flash
 
 # Test reports
 /reports
