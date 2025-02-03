@@ -12,7 +12,8 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-#define _GNU_SOURCE	 /* needed for splice() */
+#define _GNU_SOURCE          /* needed for splice() */
+#define _FILE_OFFSET_BITS 64 /* needed for working with files >4GiB */
 
 #include <errno.h>
 #include <fcntl.h>
@@ -32,8 +33,17 @@
 #include "config.h"
 
 #define UBIMajorDevNo 10
-#define BLOCK_SIZE (1024*1024L)   /* 1 MiB */
+#define BLOCK_SIZE (1024 * 1024ULL) /* 1 MiB */
+
 #define MIN(X, Y) ((X < Y) ? X : Y)
+
+/**
+ * Choose the smaller of the sizes X and Y and limit it to SIZE_MAX if needed.
+ * @note off_t is the right type for file offsets that can be greater than
+ *       size_t. However, I/O syscalls that manipulate data (read, write,...)
+ *       use size_t for their arguments.
+ */
+#define MIN_SIZE(X, Y) ((size_t) MIN((off_t) SIZE_MAX, MIN((off_t) X, (off_t) Y)))
 
 static struct option long_options[] = {
 	{"help", no_argument, 0, 'h'},
@@ -81,12 +91,12 @@ ssize_t buf_io(io_fn_t io_fn, int fd, unsigned char *buf, size_t len) {
 	}
 }
 
-bool shovel_data(int in_fd, int out_fd, size_t len, bool write_optimized, size_t fsync_interval,
+bool shovel_data(int in_fd, int out_fd, off_t len, bool write_optimized, size_t fsync_interval,
 	             struct Stats *stats, int *error) {
 	unsigned char buffer[BLOCK_SIZE];
 	size_t n_unsynced = 0;
 	while (len > 0) {
-	    ssize_t n_read = buf_io((io_fn_t)read, in_fd, buffer, MIN(BLOCK_SIZE, len));
+	    ssize_t n_read = buf_io((io_fn_t)read, in_fd, buffer, MIN_SIZE(BLOCK_SIZE, len));
 	    if (n_read < 0) {
 	        fprintf(stderr, "Failed to read data: %m\n");
 	        *error = errno;
@@ -98,7 +108,7 @@ bool shovel_data(int in_fd, int out_fd, size_t len, bool write_optimized, size_t
 	    }
 	    if (write_optimized) {
 	        unsigned char out_fd_buffer[BLOCK_SIZE];
-	        ssize_t out_fd_n_read = buf_io((io_fn_t)read, out_fd, out_fd_buffer, MIN(BLOCK_SIZE, len));
+	        ssize_t out_fd_n_read = buf_io((io_fn_t)read, out_fd, out_fd_buffer, MIN_SIZE(BLOCK_SIZE, len));
 	        if (out_fd_n_read < 0) {
 	            fprintf(stderr, "Failed to read data from the target: %m\n");
 	            *error = errno;
@@ -160,7 +170,7 @@ int main(int argc, char *argv[]) {
 	char *output_path = NULL;
 	uint64_t volume_size = 0;
 	bool write_optimized = true;
-	size_t fsync_interval = BLOCK_SIZE;
+	off_t fsync_interval = BLOCK_SIZE;
 
 	int option_index = 0;
 	int c = getopt_long(argc, argv, "hws:f:i:o:", long_options, &option_index);
@@ -192,7 +202,7 @@ int main(int argc, char *argv[]) {
 
 		case 'f': {
 			char *end = optarg;
-			long long ret = strtoll(optarg, &end, 10);
+			unsigned long long ret = strtoull(optarg, &end, 10);
 			if (((ret == 0) && (strcmp(optarg, "0") != 0)) || (*end != '\0')) {
 				fprintf(stderr, "Invalid fsync interval given: %s\n", optarg);
 				return EXIT_FAILURE;
@@ -326,9 +336,9 @@ int main(int argc, char *argv[]) {
 	    	fsync_interval = len;
 	    }
 	    ssize_t ret;
-	    size_t n_unsynced = 0;
+	    off_t n_unsynced = 0;
 	    do {
-	    	ret = sendfile_fn(out_fd, in_fd, 0, MIN(len, fsync_interval));
+	    	ret = sendfile_fn(out_fd, in_fd, 0, MIN_SIZE(len, fsync_interval));
 	    	if (ret > 0) {
 	    	    len -= ret;
 	    	    stats.total_bytes += ret;
